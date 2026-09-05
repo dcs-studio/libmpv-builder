@@ -3,7 +3,7 @@ import '../android.dart';
 
 class PlaceboBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.placebo);
+  const new() : super(library: Library.placebo);
 
   @override
   void build({required AndroidBuildContext context}) {

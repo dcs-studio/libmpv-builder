@@ -3,7 +3,7 @@ import '../android.dart';
 
 class FribidiBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.fribidi);
+  const new() : super(library: Library.fribidi);
 
   @override
   void build({required AndroidBuildContext context}) {

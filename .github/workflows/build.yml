@@ -3,9 +3,6 @@ name: Build
 on:
   workflow_dispatch:
 
-env:
-  NDK_VERSION: r29
-
 jobs:
   android:
     name: Build Android
@@ -18,7 +15,7 @@ jobs:
       - uses: nttld/setup-ndk@v1
         id: ndk
         with:
-          ndk-version: ${{ env.NDK_VERSION }}
+          ndk-version: 'r29'
           add-to-path: false
 
       - name: Install build tools
@@ -32,20 +29,39 @@ jobs:
       - name: dart pub get
         run: dart pub get -C build-scripts
 
-      - name: Build
+      - name: Build for arm32
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: dart run build-scripts/android/android.dart
+        run: dart run build-scripts/android/android.dart --action=build --abis=arm32
+
+      - name: Build for arm64
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: dart run build-scripts/android/android.dart --action=build --abis=arm64
+
+      - name: Build for x86
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: dart run build-scripts/android/android.dart --action=build --abis=x86
+
+      - name: Build for x86_64
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: dart run build-scripts/android/android.dart --action=build --abis=x86_64
+
+      - name: Archive artifacts
+        env:
+        run: dart run build-scripts/android/android.dart --action=bundle --abis=arm32,arm64,x86,x86_64
 
       - uses: actions/upload-artifact@v4
         with:
-          name: android
-          path: out/artifacts/*
+          name: android-binaries.zip
+          path: out/artifacts/android-binaries.zip
           if-no-files-found: error
 
   apple:
     name: Build Apple (${{ matrix.link-type }})
-    runs-on: macos-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: true
       matrix:
@@ -65,8 +81,20 @@ jobs:
       - name: dart pub get
         run: dart pub get -C build-scripts
 
-      - name: Build
-        run: dart run build-scripts/apple/apple.dart --link-type=${{ matrix.link-type }}
+      - name: Build macos-arm64
+        run: dart run build-scripts/apple/apple.dart --action=build --targets=macos-arm64 --link-type=${{ matrix.link-type }}
+
+      - name: Build macos-x86_64
+        run: dart run build-scripts/apple/apple.dart --action=build --targets=macos-x86_64 --link-type=${{ matrix.link-type }}
+
+      - name: Build ios-arm64
+        run: dart run build-scripts/apple/apple.dart --action=build --targets=ios-arm64 --link-type=${{ matrix.link-type }}
+
+      - name: Build iossim-arm64
+        run: dart run build-scripts/apple/apple.dart --action=build --targets=iossim-arm64 --link-type=${{ matrix.link-type }}
+
+      - name: Bundle xcframeworks
+        run: dart run build-scripts/apple/apple.dart --action=bundle --targets=macos-arm64,macos-x86_64,ios-arm64,iossim-arm64 --link-type=${{ matrix.link-type }}
 
       - uses: actions/upload-artifact@v4
         with:

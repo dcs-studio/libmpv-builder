@@ -3,7 +3,7 @@ import '../android.dart';
 
 class MpvBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.mpv);
+  const new() : super(library: Library.mpv);
 
   @override
   void build({required AndroidBuildContext context}) {

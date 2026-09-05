@@ -3,7 +3,7 @@ import '../android.dart';
 
 class MbedtlsBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.mbedtls);
+  const new() : super(library: Library.mbedtls);
 
   @override
   void build({required AndroidBuildContext context}) {

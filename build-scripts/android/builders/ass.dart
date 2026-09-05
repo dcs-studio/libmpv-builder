@@ -3,7 +3,7 @@ import '../android.dart';
 
 class AssBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.ass);
+  const new() : super(library: Library.ass);
 
   @override
   void build({required AndroidBuildContext context}) {

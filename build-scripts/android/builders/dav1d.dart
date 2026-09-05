@@ -3,7 +3,7 @@ import '../android.dart';
 
 class Dav1dBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.dav1d);
+  const new() : super(library: Library.dav1d);
 
   @override
   void build({required AndroidBuildContext context}) {

@@ -42,14 +42,22 @@ void main(List<String> args) {
       allowed: appleLibraries.map( (it) => it.name),
       defaultsTo: appleLibraries.map( (it) => it.name),
     )
-    ..addFlag("bundle", defaultsTo: true, help: "Bundle xcframeworks")
+    ..addOption(
+      /*name:*/ "action",
+      allowed: ["build", "bundle"],
+    )
     ..addFlag("log", defaultsTo: true, help: "Log processes output");
 
   final results = parser.parse(args);
 
   final help      = results.flag("help");
+  if (help) {
+    stdout.write(parser.usage);
+    return;
+  }
+
   final log       = results.flag("log");
-  final bundle    = results.flag("bundle");
+  final action    = results.option("action");
   final targets   = results.multiOption("targets")
     .map( (it) {
       final [arg1, arg2] = it.split("-");
@@ -68,71 +76,72 @@ void main(List<String> args) {
       });
   final linkType = LinkType.values.byName(results.option("link-type")!);
 
-  if (help) {
-    stdout.write(parser.usage);
-    return;
-  }
+
 
   Logger.enabled = log;
 
-
-  for (final target in targets) {
-    for (final lib in libraries) {
-      final context = AppleBuildContext(library: lib, target: target, linkType: linkType);
-      final builder = appleBuilders[lib]!;
-      builder.fetchSources(context: context);
-      builder.buildOrSkip(context);
-    }
-  }
-
-  if (bundle) {
-    for (final lib in libraries) {
-      appleBuilders[lib]!.assembleFramework(link: linkType, targets: targets);
-    }
-    final appleArtifact = Directory.current.resolveFile("out/artifacts/apple-binaries-${linkType.name}.zip");
-    final originalDir = Directory.current.resolveDir("out/apple/${linkType.name}/xcframeworks");
-    if ( appleArtifact.existsSync() ) {
-      appleArtifact.deleteSync();
-    }
-    originalDir.zipTo(destination: appleArtifact);
-    if (linkType == LinkType.static) {
-      final originalDir = Directory.current.resolveDir("out/apple/${linkType.name}/xcframeworks");
-      final xcframeworks = originalDir.listSync(recursive: false).whereType<Directory>();
-      for (final f in xcframeworks) {
-        if ( !f.name.endsWith(".xcframework") ) continue;
-        final destination = Directory.current.resolveFile("out/artifacts/${f.name}.zip");
-        if ( destination.existsSync() ) {
-          destination.deleteSync();
+  switch (action) {
+    case "build":
+      for (final target in targets) {
+        for (final lib in libraries) {
+          final context = AppleBuildContext(library: lib, target: target, linkType: linkType);
+          final builder = appleBuilders[lib]!;
+          builder.fetchSources(context: context);
+          builder.buildOrSkip(context);
         }
-        f.zipTo(destination: destination, includeRootDir: false);
       }
-    }
+      break;
+    case "bundle":
+      for (final lib in libraries) {
+        appleBuilders[lib]!.assembleFramework(link: linkType, targets: targets);
+      }
+      final appleArtifact = Directory.current.resolveFile("out/artifacts/apple-binaries-${linkType.name}.zip");
+      final originalDir = Directory.current.resolveDir("out/apple/${linkType.name}/xcframeworks");
+      if ( appleArtifact.existsSync() ) {
+        appleArtifact.deleteSync();
+      }
+      originalDir.zipTo(destination: appleArtifact);
+      if (linkType == LinkType.static) {
+        final originalDir = Directory.current.resolveDir("out/apple/${linkType.name}/xcframeworks");
+        final xcframeworks = originalDir.listSync(recursive: false).whereType<Directory>();
+        for (final f in xcframeworks) {
+          if ( !f.name.endsWith(".xcframework") ) continue;
+          final destination = Directory.current.resolveFile("out/artifacts/${f.name}.zip");
+          if ( destination.existsSync() ) {
+            destination.deleteSync();
+          }
+          f.zipTo(destination: destination, includeRootDir: false);
+        }
+      }
+      break;
+    default: throw "Invalid action: $action";
   }
+
 }
 
-List<AppleTarget> get allTargets => [
-  const AppleTarget(ApplePlatform.macos, AppleArch.arm64),
-  const AppleTarget(ApplePlatform.macos, AppleArch.x86_64),
-  const AppleTarget(ApplePlatform.ios, AppleArch.arm64),
-  const AppleTarget(ApplePlatform.iossim, AppleArch.arm64),
+List<AppleTarget> get allTargets => const [
+  AppleTarget(ApplePlatform.macos, AppleArch.arm64), //macos-arm64
+  AppleTarget(ApplePlatform.macos, AppleArch.x86_64), //macos-x86_64
+  AppleTarget(ApplePlatform.ios, AppleArch.arm64), //ios-arm64
+  AppleTarget(ApplePlatform.iossim, AppleArch.arm64), //iossim-arm64
 ];
 
-Map<Library, AppleLibraryBuilder> get appleBuilders => {
-  Library.unibreak:  const UnibreakBuilder(),
-  Library.freetype:  const FreetypeBuilder(),
-  Library.fribidi:   const FribidiBuilder(),
-  Library.harfbuzz:  const HarfbuzzBuilder(),
-  Library.ass:       const AssBuilder(),
-  Library.moltenvk:  const MoltenvkBuilder(),
-  Library.shaderc:   const ShadercBuilder(),
-  Library.dav1d:     const Dav1dBuilder(),
-  Library.lcms2:     const Lcms2Builder(),
-  Library.dovi:      const DoviBuilder(),
-  Library.placebo:   const PlaceboBuilder(),
-  Library.mbedtls:   const MbedtlsBuilder(),
-  Library.ffmpeg:    const FFmpegBuilder(),
-  Library.uchardet:  const UchardetBuilder(),
-  Library.mpv:       const MpvBuilder(),
+Map<Library, AppleLibraryBuilder> get appleBuilders => const {
+  Library.unibreak: UnibreakBuilder(),
+  Library.freetype: FreetypeBuilder(),
+  Library.fribidi:  FribidiBuilder(),
+  Library.harfbuzz: HarfbuzzBuilder(),
+  Library.ass:      AssBuilder(),
+  Library.moltenvk: MoltenvkBuilder(),
+  Library.shaderc:  ShadercBuilder(),
+  Library.dav1d:    Dav1dBuilder(),
+  Library.lcms2:    Lcms2Builder(),
+  Library.dovi:     DoviBuilder(),
+  Library.placebo:  PlaceboBuilder(),
+  Library.mbedtls:  MbedtlsBuilder(),
+  Library.ffmpeg:   FFmpegBuilder(),
+  Library.uchardet: UchardetBuilder(),
+  Library.mpv:      MpvBuilder(),
 };
 
 List<Library> get appleLibraries => appleBuilders.keys.toList(growable: false);

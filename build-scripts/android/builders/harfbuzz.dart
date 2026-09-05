@@ -3,7 +3,7 @@ import '../android.dart';
 
 class HarfbuzzBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.harfbuzz);
+  const new() : super(library: Library.harfbuzz);
 
   @override
   void build({required AndroidBuildContext context}) {

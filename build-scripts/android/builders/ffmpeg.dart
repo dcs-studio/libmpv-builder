@@ -3,7 +3,7 @@ import '../android.dart';
 
 class FFmpegBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.ffmpeg);
+  const new() : super(library: Library.ffmpeg);
 
   @override
   void build({required AndroidBuildContext context}) {

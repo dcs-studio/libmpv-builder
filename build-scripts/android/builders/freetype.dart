@@ -3,7 +3,7 @@ import '../android.dart';
 
 class FreetypeBuilder extends AndroidLibraryBuilder {
 
-  new() : super(library: Library.freetype);
+  const new() : super(library: Library.freetype);
 
   @override
   void build({required AndroidBuildContext context}) {
