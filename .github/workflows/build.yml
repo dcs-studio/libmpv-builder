@@ -50,7 +50,6 @@ jobs:
         run: dart run build-scripts/android/android.dart --action=build --abis=x86_64
 
       - name: Archive artifacts
-        env:
         run: dart run build-scripts/android/android.dart --action=bundle --abis=arm32,arm64,x86,x86_64
 
       - uses: actions/upload-artifact@v4
