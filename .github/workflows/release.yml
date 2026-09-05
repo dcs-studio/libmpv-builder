@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+env:
+  NDK_VERSION: r29
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+
+      - name: dart pub get
+        run: dart pub get -C build-scripts
+
+      - name: Check tag does not already exist
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(dart run build-scripts/release_info.dart version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Project version: $version"
+          if gh api "repos/${{ github.repository }}/git/ref/tags/$version" --silent 2>/dev/null; then
+            echo "::error::Tag '$version' already exists on ${{ github.repository }}. Bump Versions.PROJECT before releasing."
+            exit 1
+          fi
+          echo "Tag '$version' is free."
+
+  android:
+    name: Build Android
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build nasm yasm pkg-config python3-pip
+          pip3 install --user meson
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: dart pub get
+        run: dart pub get -C build-scripts
+
+      - name: Build
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: dart run build-scripts/android/android.dart
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/artifacts/*
+          if-no-files-found: error
+
+  apple:
+    name: Build Apple (${{ matrix.link-type }})
+    needs: preflight
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        link-type: [static, shared]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Install build tools
+        run: brew install meson ninja pkg-config nasm yasm
+
+      - name: Add Rust targets & install cargo-c
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+          cargo install cargo-c
+
+      - name: dart pub get
+        run: dart pub get -C build-scripts
+
+      - name: Build
+        run: dart run build-scripts/apple/apple.dart --link-type=${{ matrix.link-type }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-${{ matrix.link-type }}
+          path: out/artifacts/*
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    needs: [preflight, android, apple]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+
+      - name: dart pub get
+        run: dart pub get -C build-scripts
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: out/artifacts
+          merge-multiple: true
+
+      - name: Generate release notes
+        run: dart run build-scripts/release_info.dart notes > release_notes.md
+
+      - name: Create tag and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --notes-file release_notes.md \
+            --target "${{ github.sha }}" \
+            out/artifacts/*

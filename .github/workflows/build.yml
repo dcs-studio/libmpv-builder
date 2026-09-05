@@ -1,0 +1,75 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+env:
+  NDK_VERSION: r29
+
+jobs:
+  android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 make meson nasm autoconf automake libtool
+          pip3 install --user Jinja2
+          pip3 install --user jsonschema
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: dart pub get
+        run: dart pub get -C build-scripts
+
+      - name: Build
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: dart run build-scripts/android/android.dart
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/artifacts/*
+          if-no-files-found: error
+
+  apple:
+    name: Build Apple (${{ matrix.link-type }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        link-type: [static, shared]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+
+#      - name: Install build tools
+#        run: brew install meson ninja pkg-config nasm yasm
+
+#      - name: Add Rust targets & install cargo-c
+#        run: |
+#          rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+#          cargo install cargo-c
+
+      - name: dart pub get
+        run: dart pub get -C build-scripts
+
+      - name: Build
+        run: dart run build-scripts/apple/apple.dart --link-type=${{ matrix.link-type }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-${{ matrix.link-type }}
+          path: out/artifacts/*
+          if-no-files-found: error

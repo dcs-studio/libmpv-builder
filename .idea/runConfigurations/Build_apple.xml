@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Build apple" type="DartCommandLineRunConfigurationType" factoryName="Dart Command Line Application">
+    <option name="filePath" value="$PROJECT_DIR$/build-scripts/apple/apple.dart" />
+    <option name="workingDirectory" value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>

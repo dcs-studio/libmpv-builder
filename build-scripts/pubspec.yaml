@@ -1,0 +1,11 @@
+name: libmpv_builder
+description: Build scripts for libmpv.
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  path: ^1.9.0
+  args: ^2.7.0
+  archive: ^4.2.0
