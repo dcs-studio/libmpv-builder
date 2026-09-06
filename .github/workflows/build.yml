@@ -88,34 +88,39 @@ jobs:
         run: dart pub get -C build-scripts
 
       - name: Build macos-arm64
-        run: dart run build-scripts/apple/apple.dart \
-          --action=build \
-          --targets=macos-arm64 \
-          --link-type=${{ matrix.link-type }}
+        run: |
+          dart run build-scripts/apple/apple.dart \
+            --action=build \
+            --targets=macos-arm64 \
+            --link-type=${{ matrix.link-type }}
 
       - name: Build macos-x86_64
-        run: dart run build-scripts/apple/apple.dart \
-          --action=build \
-          --targets=macos-x86_64 \
-          --link-type=${{ matrix.link-type }}
+        run: |
+          dart run build-scripts/apple/apple.dart \
+            --action=build \
+            --targets=macos-x86_64 \
+            --link-type=${{ matrix.link-type }}
 
       - name: Build ios-arm64
-        run: dart run build-scripts/apple/apple.dart \
-          --action=build \
-          --targets=ios-arm64 \
-          --link-type=${{ matrix.link-type }}
+        run: |
+          dart run build-scripts/apple/apple.dart \
+            --action=build \
+            --targets=ios-arm64 \
+            --link-type=${{ matrix.link-type }}
 
       - name: Build iossim-arm64
-        run: dart run build-scripts/apple/apple.dart \
-          --action=build \
-          --targets=iossim-arm64 \
-          --link-type=${{ matrix.link-type }}
+        run: |
+          dart run build-scripts/apple/apple.dart \
+            --action=build \
+            --targets=iossim-arm64 \
+            --link-type=${{ matrix.link-type }}
 
       - name: Bundle xcframeworks
-        run: dart run build-scripts/apple/apple.dart \
-          --action=bundle \
-          --targets=macos-arm64,macos-x86_64,ios-arm64,iossim-arm64 \
-          --link-type=${{ matrix.link-type }}
+        run: |
+          dart run build-scripts/apple/apple.dart \
+            --action=bundle \
+            --targets=macos-arm64,macos-x86_64,ios-arm64,iossim-arm64 \
+            --link-type=${{ matrix.link-type }}
 
       - uses: actions/upload-artifact@v7.0.1
         with:
