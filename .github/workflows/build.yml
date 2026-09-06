@@ -9,7 +9,7 @@ on:
 jobs:
   android:
     name: Build Android
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
@@ -22,12 +22,7 @@ jobs:
           add-to-path: false
 
       - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 make meson nasm autoconf automake libtool
-          pip3 install --user Jinja2
-          pip3 install --user jsonschema
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        run: brew install meson ninja pkg-config nasm yasm automake autoconf libtool
 
       - name: Dart pub get
         run: dart pub get -C build-scripts
@@ -63,7 +58,7 @@ jobs:
 
   apple:
     name: Build Apple (${{ matrix.link-type }})
-    runs-on: macos-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: true
       max-parallel: 1
