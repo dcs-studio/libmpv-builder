@@ -48,7 +48,6 @@ void main(List<String> args) {
   }
   final action    = results.option("action");
   final log       = results.flag("log");
-  final bundle    = results.flag("bundle");
   final abis      = results.multiOption("abis").map(AndroidAbi.values.byName).toList(growable: false);
   final libraries = results.multiOption("libs")
       .map(androidLibraries.byName)

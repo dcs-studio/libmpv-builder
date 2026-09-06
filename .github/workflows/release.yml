@@ -1,15 +1,13 @@
-name: Release
+name: Build
 
 on:
   workflow_dispatch:
-
-env:
-  NDK_VERSION: r29
 
 jobs:
   preflight:
     name: Preflight
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     outputs:
       version: ${{ steps.check.outputs.version }}
     steps:
@@ -34,9 +32,10 @@ jobs:
           echo "Tag '$version' is free."
 
   android:
+    needs: [preflight]
     name: Build Android
-    needs: preflight
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -45,14 +44,15 @@ jobs:
       - uses: nttld/setup-ndk@v1
         id: ndk
         with:
-          ndk-version: ${{ env.NDK_VERSION }}
+          ndk-version: 'r29'
           add-to-path: false
 
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build nasm yasm pkg-config python3-pip
-          pip3 install --user meson
+          sudo apt-get install -y python3 make meson nasm autoconf automake libtool
+          pip3 install --user Jinja2
+          pip3 install --user jsonschema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: dart pub get
@@ -81,16 +81,18 @@ jobs:
       - name: Archive artifacts
         run: dart run build-scripts/android/android.dart --action=bundle --abis=arm32,arm64,x86,x86_64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.1
         with:
-          name: android-binaries.zip
           path: out/artifacts/android-binaries.zip
           if-no-files-found: error
+          archive: false
 
   apple:
     name: Build Apple (${{ matrix.link-type }})
-    needs: preflight
-    runs-on: macos-latest
+    runs-on: self-hosted
+    needs: [preflight]
+    env:
+      TAG: ${{ needs.preflight.outputs.version }}
     strategy:
       fail-fast: true
       matrix:
@@ -99,25 +101,64 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
 
-      - name: Install build tools
-        run: brew install meson ninja pkg-config nasm yasm
+      #      - name: Install build tools
+      #        run: brew install meson ninja pkg-config nasm yasm
 
-      - name: Add Rust targets & install cargo-c
-        run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
-          cargo install cargo-c
+      #      - name: Add Rust targets & install cargo-c
+      #        run: |
+      #          rustup target add aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+      #          cargo install cargo-c
 
       - name: dart pub get
         run: dart pub get -C build-scripts
 
-      - name: Build
-        run: dart run build-scripts/apple/apple.dart --link-type=${{ matrix.link-type }}
+      - name: Build macos-arm64
+        run: dart run build-scripts/apple/apple.dart \
+          --action=build \
+          --targets=macos-arm64 \
+          --link-type=${{ matrix.link-type }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Build macos-x86_64
+        run: dart run build-scripts/apple/apple.dart \
+          --action=build \
+          --targets=macos-x86_64 \
+          --link-type=${{ matrix.link-type }}
+
+      - name: Build ios-arm64
+        run: dart run build-scripts/apple/apple.dart \
+          --action=build \
+          --targets=ios-arm64 \
+          --link-type=${{ matrix.link-type }}
+
+      - name: Build iossim-arm64
+        run: dart run build-scripts/apple/apple.dart \
+          --action=build \
+          --targets=iossim-arm64 \
+          --link-type=${{ matrix.link-type }}
+
+      - name: Bundle xcframeworks
+        run: dart run build-scripts/apple/apple.dart \
+          --action=bundle \
+          --targets=macos-arm64,macos-x86_64,ios-arm64,iossim-arm64 \
+          --link-type=${{ matrix.link-type }}
+
+      - name: Create Swift package
+        if: matrix.link-type == 'static'
+        run: dart run build-scripts/apple/apple.dart \
+          --action=generate-swift-package \
+          --targets=macos-arm64,macos-x86_64,ios-arm64,iossim-arm64 \
+          --repo=${{ github.repository }} \
+          --tag=$TAG
+
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: apple-${{ matrix.link-type }}
-          path: out/artifacts/*
+          path: |
+            out/artifacts/apple-binaries-*.zip
+            out/artifacts/*.xcframework.zip
+            ${{ matrix.link-type == 'static' && 'out/artifacts/Package.swift' || '' }}
           if-no-files-found: error
+          archive: false
 
   release:
     name: Publish Release
@@ -141,6 +182,19 @@ jobs:
       - name: Generate release notes
         run: dart run build-scripts/release_info.dart notes > release_notes.md
 
+      - name: Commit Package.swift
+        id: commit
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mv out/artifacts/Package.swift ./Package.swift
+          git add -f Package.swift
+          git commit -m "release: Package.swift for ${VERSION}"
+          git push origin HEAD:${GITHUB_REF_NAME}
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Create tag and publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -149,5 +203,5 @@ jobs:
           gh release create "$VERSION" \
             --title "$VERSION" \
             --notes-file release_notes.md \
-            --target "${{ github.sha }}" \
+            --target "${{ steps.commit.outputs.sha }}" \
             out/artifacts/*
