@@ -77,7 +77,7 @@ jobs:
           xcode-version: '26.0'
 
       - name: Install build tools
-        run: brew install meson ninja pkg-config nasm yasm
+        run: brew install meson ninja pkg-config nasm yasm automake autoconf libtool
 
       - name: Add Rust targets & install cargo-c
         run: |
