@@ -95,11 +95,16 @@ jobs:
       TAG: ${{ needs.preflight.outputs.version }}
     strategy:
       fail-fast: true
+      max-parallel: 1
       matrix:
         link-type: [static, shared]
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0'
 
       #      - name: Install build tools
       #        run: brew install meson ninja pkg-config nasm yasm

@@ -66,6 +66,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       fail-fast: true
+      max-parallel: 1
       matrix:
         link-type: [static, shared]
     steps:
@@ -75,6 +76,23 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '26.0'
+
+      - name: Cache iOS simulator runtime
+        id: ios-runtime-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /Library/Developer/CoreSimulator/Volumes
+            /Library/Developer/CoreSimulator/Cryptex
+          key: ios-runtime-xcode-26.0
+
+      - name: Install iOS platform
+        run: |
+          if xcodebuild -showsdks 2>/dev/null | grep -q "iphoneos"; then
+            echo "iOS SDK already installed, skipping download"
+          else
+            sudo xcodebuild -downloadPlatform iOS
+          fi
 
       - name: Install build tools
         run: brew install meson ninja pkg-config nasm yasm automake autoconf libtool
@@ -124,7 +142,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7.0.1
         with:
-          name: apple-${{ matrix.link-type }}
-          path: out/artifacts/apple-binaries-*.zip
+          name: apple-binaries-${{ matrix.link-type }}.zip
+          path: out/artifacts/apple-binaries-${{ matrix.link-type }}.zip
           if-no-files-found: error
           archive: false
