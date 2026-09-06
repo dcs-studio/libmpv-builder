@@ -7,61 +7,60 @@ on:
       - main
 
 jobs:
-  android:
-    name: Build Android
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dart-lang/setup-dart@v1
-
-      - uses: nttld/setup-ndk@v1
-        id: ndk
-        with:
-          ndk-version: 'r29'
-          add-to-path: false
-
-      - name: Install build tools
-        run: brew install meson ninja pkg-config nasm yasm automake autoconf libtool
-
-      - name: Dart pub get
-        run: dart pub get -C build-scripts
-
-      - name: Build for arm32
-        env:
-          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: dart run build-scripts/android/android.dart --action=build --abis=arm32
-
-      - name: Build for arm64
-        env:
-          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: dart run build-scripts/android/android.dart --action=build --abis=arm64
-
-      - name: Build for x86
-        env:
-          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: dart run build-scripts/android/android.dart --action=build --abis=x86
-
-      - name: Build for x86_64
-        env:
-          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: dart run build-scripts/android/android.dart --action=build --abis=x86_64
-
-      - name: Archive artifacts
-        run: dart run build-scripts/android/android.dart --action=bundle --abis=arm32,arm64,x86,x86_64
-
-      - uses: actions/upload-artifact@v7.0.1
-        with:
-          path: out/artifacts/android-binaries.zip
-          if-no-files-found: error
-          archive: false
+#  android:
+#    name: Build Android
+#    runs-on: self-hosted
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - uses: dart-lang/setup-dart@v1
+#
+#      - uses: nttld/setup-ndk@v1
+#        id: ndk
+#        with:
+#          ndk-version: 'r29'
+#          add-to-path: false
+#
+#      - name: Install build tools
+#        run: brew install meson ninja pkg-config nasm yasm automake autoconf libtool
+#
+#      - name: Dart pub get
+#        run: dart pub get -C build-scripts
+#
+#      - name: Build for arm32
+#        env:
+#          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+#        run: dart run build-scripts/android/android.dart --action=build --abis=arm32
+#
+#      - name: Build for arm64
+#        env:
+#          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+#        run: dart run build-scripts/android/android.dart --action=build --abis=arm64
+#
+#      - name: Build for x86
+#        env:
+#          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+#        run: dart run build-scripts/android/android.dart --action=build --abis=x86
+#
+#      - name: Build for x86_64
+#        env:
+#          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+#        run: dart run build-scripts/android/android.dart --action=build --abis=x86_64
+#
+#      - name: Archive artifacts
+#        run: dart run build-scripts/android/android.dart --action=bundle --abis=arm32,arm64,x86,x86_64
+#
+#      - uses: actions/upload-artifact@v7.0.1
+#        with:
+#          path: out/artifacts/android-binaries.zip
+#          if-no-files-found: error
+#          archive: false
 
   apple:
     name: Build Apple (${{ matrix.link-type }})
     runs-on: self-hosted
     strategy:
       fail-fast: true
-      max-parallel: 1
       matrix:
         link-type: [static, shared]
     steps:
@@ -77,6 +76,13 @@ jobs:
 
       - name: Install build tools
         run: brew install meson ninja pkg-config nasm yasm automake autoconf libtool
+
+      - name: Install Rust
+        run: |
+          if ! command -v rustup &> /dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Add Rust targets & install cargo-c
         run: |
