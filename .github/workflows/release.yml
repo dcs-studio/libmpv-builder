@@ -78,9 +78,9 @@ jobs:
 
       - uses: actions/upload-artifact@v7.0.1
         with:
+          name: android-binaries
           path: out/artifacts/android-binaries.zip
           if-no-files-found: error
-          archive: false
 
   apple:
     name: Build Apple (${{ matrix.link-type }})
@@ -187,11 +187,23 @@ jobs:
       - name: dart pub get
         run: dart pub get -C build-scripts
 
-      - name: Download all artifacts
+      - name: Download android-binaries
         uses: actions/download-artifact@v4
         with:
+          name: android-binaries
           path: out/artifacts
-          merge-multiple: true
+
+      - name: Download apple-static
+        uses: actions/download-artifact@v4
+        with:
+          name: apple-static
+          path: out/artifacts
+
+      - name: Download apple-shared
+        uses: actions/download-artifact@v4
+        with:
+          name: apple-shared
+          path: out/artifacts
 
       - name: Generate release notes
         run: dart run build-scripts/common/release_info.dart notes > release_notes.md
@@ -214,8 +226,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.preflight.outputs.version }}
         run: |
+          mv out/artifacts/apple-binaries-shared.zip out/artifacts/apple-shared.zip
           gh release create "$VERSION" \
             --title "$VERSION" \
             --notes-file release_notes.md \
             --target "${{ steps.commit.outputs.sha }}" \
-            out/artifacts/*
+            out/artifacts/android-binaries.zip \
+            out/artifacts/*.xcframework.zip \
+            out/artifacts/apple-shared.zip
