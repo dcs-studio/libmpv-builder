@@ -173,7 +173,6 @@ jobs:
             out/artifacts/*.xcframework.zip
             ${{ matrix.link-type == 'static' && 'out/artifacts/Package.swift' || '' }}
           if-no-files-found: error
-          archive: false
 
   release:
     name: Publish Release
